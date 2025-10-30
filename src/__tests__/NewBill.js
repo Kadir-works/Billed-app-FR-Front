@@ -8,7 +8,7 @@ import NewBill from "../containers/NewBill.js";
 import { ROUTES_PATH } from "../constants/routes.js";
 import { localStorageMock } from "../__mocks__/localStorage.js";
 
-// Mock pour File (nécessaire pour les tests)
+// Mock pour simuler les objets File dans les tests
 class MockFile {
   constructor(content, name, options) {
     this.content = content;
@@ -17,22 +17,24 @@ class MockFile {
   }
 }
 
-describe("Given I am connected as an employee", () => {
-  describe("When I am on NewBill Page", () => {
-    test("Then the NewBill form should be rendered", () => {
+describe("Étant donné que je suis connecté en tant qu'employé", () => {
+  describe("Lorsque je suis sur la page Nouvelle Note de Frais", () => {
+    test("Alors le formulaire NewBill devrait être affiché avec tous ses champs", () => {
+      // Génération de l'interface utilisateur du formulaire
       const html = NewBillUI();
       document.body.innerHTML = html;
 
-      expect(screen.getByTestId("form-new-bill")).toBeTruthy();
-      expect(screen.getByTestId("expense-type")).toBeTruthy();
-      expect(screen.getByTestId("expense-name")).toBeTruthy();
-      expect(screen.getByTestId("datepicker")).toBeTruthy();
-      expect(screen.getByTestId("amount")).toBeTruthy();
-      expect(screen.getByTestId("file")).toBeTruthy();
+      // Vérification que tous les éléments du formulaire sont présents
+      expect(screen.getByTestId("form-new-bill")).toBeTruthy(); // Formulaire principal
+      expect(screen.getByTestId("expense-type")).toBeTruthy(); // Type de dépense
+      expect(screen.getByTestId("expense-name")).toBeTruthy(); // Nom de la dépense
+      expect(screen.getByTestId("datepicker")).toBeTruthy(); // Sélecteur de date
+      expect(screen.getByTestId("amount")).toBeTruthy(); // Montant TTC
+      expect(screen.getByTestId("file")).toBeTruthy(); // Champ fichier
     });
 
-    test("Then it should handle file change with valid extension", async () => {
-      // Setup
+    test("Alors il devrait accepter un fichier avec une extension valide", async () => {
+      // Configuration de l'environnement de test
       Object.defineProperty(window, "localStorage", {
         value: localStorageMock,
       });
@@ -40,23 +42,27 @@ describe("Given I am connected as an employee", () => {
         "user",
         JSON.stringify({
           type: "Employee",
-          email: "employee@test.com",
+          email: "employee@test.com", // Email pour simuler l'utilisateur
         })
       );
 
+      // Affichage de l'interface
       const html = NewBillUI();
       document.body.innerHTML = html;
 
-      const onNavigate = jest.fn();
-      const mockCreate = jest
-        .fn()
-        .mockResolvedValue({ fileUrl: "test.jpg", key: "123" });
+      // Création des mocks pour la navigation et le store
+      const onNavigate = jest.fn(); // Mock de la fonction de navigation
+      const mockCreate = jest.fn().mockResolvedValue({
+        fileUrl: "test.jpg", // Simulation de la réponse API
+        key: "123", // ID de la note créée
+      });
       const store = {
         bills: jest.fn(() => ({
-          create: mockCreate,
+          create: mockCreate, // Mock de la création via API
         })),
       };
 
+      // Instanciation du container NewBill
       const newBill = new NewBill({
         document,
         onNavigate,
@@ -64,25 +70,24 @@ describe("Given I am connected as an employee", () => {
         localStorage: window.localStorage,
       });
 
-      // Simuler la sélection d'un fichier valide - méthode alternative
-      const fileInput = screen.getByTestId("file");
-
-      // Créer un mock d'événement plus simple
+      // Simulation de la sélection d'un fichier JPG valide
       const event = {
-        preventDefault: jest.fn(),
+        preventDefault: jest.fn(), // Empêche le comportement par défaut
         target: {
-          value: "C:\\fakepath\\test.jpg",
-          files: [{ name: "test.jpg", type: "image/jpeg" }],
+          value: "C:\\fakepath\\test.jpg", // Chemin simulé du fichier
+          files: [{ name: "test.jpg", type: "image/jpeg" }], // Fichier JPG valide
         },
       };
 
+      // Appel de la méthode handleChangeFile avec le fichier valide
       await newBill.handleChangeFile(event);
 
+      // Vérification que l'upload a bien été déclenché
       expect(mockCreate).toHaveBeenCalled();
     });
 
-    test("Then it should reject file with invalid extension", async () => {
-      // Setup
+    test("Alors il devrait rejeter un fichier avec une extension invalide", async () => {
+      // Configuration de l'environnement de test
       Object.defineProperty(window, "localStorage", {
         value: localStorageMock,
       });
@@ -94,20 +99,23 @@ describe("Given I am connected as an employee", () => {
         })
       );
 
+      // Affichage de l'interface
       const html = NewBillUI();
       document.body.innerHTML = html;
 
+      // Création des mocks
       const onNavigate = jest.fn();
-      const mockCreate = jest.fn();
+      const mockCreate = jest.fn(); // Mock qui ne devrait PAS être appelé
       const store = {
         bills: jest.fn(() => ({
           create: mockCreate,
         })),
       };
 
-      // Mock de alert
+      // Mock de la fonction alert pour capturer le message d'erreur
       window.alert = jest.fn();
 
+      // Instanciation du container
       const newBill = new NewBill({
         document,
         onNavigate,
@@ -115,25 +123,27 @@ describe("Given I am connected as an employee", () => {
         localStorage: window.localStorage,
       });
 
-      // Simuler la sélection d'un fichier invalide
+      // Simulation de la sélection d'un fichier PDF invalide
       const event = {
         preventDefault: jest.fn(),
         target: {
-          value: "C:\\fakepath\\test.pdf",
-          files: [{ name: "test.pdf", type: "application/pdf" }],
+          value: "C:\\fakepath\\test.pdf", // Chemin simulé
+          files: [{ name: "test.pdf", type: "application/pdf" }], // Fichier PDF invalide
         },
       };
 
+      // Appel de handleChangeFile avec fichier invalide
       await newBill.handleChangeFile(event);
 
+      // Vérifications pour un fichier invalide
       expect(window.alert).toHaveBeenCalledWith(
-        "Seuls les fichiers JPG, JPEG et PNG sont autorisés"
+        "Seuls les fichiers JPG, JPEG et PNG sont autorisés" // Message d'erreur attendu
       );
-      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockCreate).not.toHaveBeenCalled(); // L'upload ne doit PAS être appelé
     });
 
-    test("Then it should handle form submission", () => {
-      // Setup
+    test("Alors il devrait gérer la soumission du formulaire", () => {
+      // Configuration de l'environnement de test
       Object.defineProperty(window, "localStorage", {
         value: localStorageMock,
       });
@@ -145,17 +155,20 @@ describe("Given I am connected as an employee", () => {
         })
       );
 
+      // Affichage de l'interface
       const html = NewBillUI();
       document.body.innerHTML = html;
 
+      // Création des mocks
       const onNavigate = jest.fn();
-      const mockUpdate = jest.fn().mockResolvedValue({});
+      const mockUpdate = jest.fn().mockResolvedValue({}); // Mock de la mise à jour API
       const store = {
         bills: jest.fn(() => ({
-          update: mockUpdate,
+          update: mockUpdate, // Mock de la mise à jour de note
         })),
       };
 
+      // Instanciation du container
       const newBill = new NewBill({
         document,
         onNavigate,
@@ -163,21 +176,23 @@ describe("Given I am connected as an employee", () => {
         localStorage: window.localStorage,
       });
 
-      // Pré-remplir les données nécessaires
-      newBill.fileUrl = "http://test.com/file.jpg";
-      // newBill.fileName = "test.jpg";
-      // newBill.billId = "123";
+      // Pré-remplissage des propriétés nécessaires (normalement définies après upload)
+      newBill.fileUrl = "http://test.com/file.jpg"; // URL du justificatif
+      // newBill.fileName = "test.jpg";              // Nom du fichier (commenté pour test)
+      // newBill.billId = "123";                     // ID de la note (commenté pour test)
 
-      // Simuler la soumission du formulaire en appelant directement handleSubmit
+      // Simulation de la soumission du formulaire
       const event = {
-        preventDefault: jest.fn(),
-        target: document.querySelector(`form[data-testid="form-new-bill"]`),
+        preventDefault: jest.fn(), // Empêche l'envoi réel du formulaire
+        target: document.querySelector(`form[data-testid="form-new-bill"]`), // Formulaire cible
       };
 
+      // Appel direct de la méthode handleSubmit
       newBill.handleSubmit(event);
 
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
+      // Vérifications après soumission
+      expect(mockUpdate).toHaveBeenCalled(); // L'API update doit être appelée
+      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]); // Navigation vers Bills
     });
   });
 });
