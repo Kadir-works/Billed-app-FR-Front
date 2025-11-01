@@ -194,5 +194,140 @@ describe("Étant donné que je suis connecté en tant qu'employé", () => {
       expect(mockUpdate).toHaveBeenCalled(); // L'API update doit être appelée
       expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]); // Navigation vers Bills
     });
+
+    test("Alors il devrait gérer une erreur 404 lors de l'upload du fichier", async () => {
+      // Configuration de l'environnement de test
+      Object.defineProperty(window, "localStorage", {
+        value: localStorageMock,
+      });
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({
+          type: "Employee",
+          email: "employee@test.com",
+        })
+      );
+
+      // Affichage de l'interface
+      const html = NewBillUI();
+      document.body.innerHTML = html;
+
+      // Création des mocks avec une erreur 404
+      const onNavigate = jest.fn();
+      const mockCreate = jest.fn().mockRejectedValue(
+        new Error("Erreur 404")
+      );
+      const store = {
+        bills: jest.fn(() => ({
+          create: mockCreate,
+        })),
+      };
+
+      // Mock de console.error pour capturer l'erreur
+      const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      // Instanciation du container
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      // Simulation de la sélection d'un fichier valide
+      const event = {
+        preventDefault: jest.fn(),
+        target: {
+          value: "C:\\fakepath\\test.jpg",
+          files: [{ name: "test.jpg", type: "image/jpeg" }],
+        },
+      };
+
+      // Appel de handleChangeFile avec erreur 404
+      await newBill.handleChangeFile(event);
+
+      // Attente que la promesse soit rejetée et que l'erreur soit catchée
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Vérifications
+      expect(mockCreate).toHaveBeenCalled(); // L'API create doit être appelée
+      expect(consoleErrorSpy).toHaveBeenCalled(); // console.error doit être appelé
+      // Vérification que l'erreur 404 est bien loggée
+      const loggedError = consoleErrorSpy.mock.calls[0][0];
+      expect(loggedError.message || loggedError.toString()).toContain("Erreur 404");
+      expect(newBill.fileUrl).toBeNull(); // fileUrl ne doit pas être défini en cas d'erreur
+
+      // Nettoyage
+      consoleErrorSpy.mockRestore();
+    });
+
+    test("Alors il devrait gérer une erreur 500 lors de la mise à jour de la note", async () => {
+      // Configuration de l'environnement de test
+      Object.defineProperty(window, "localStorage", {
+        value: localStorageMock,
+      });
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({
+          type: "Employee",
+          email: "employee@test.com",
+        })
+      );
+
+      // Affichage de l'interface
+      const html = NewBillUI();
+      document.body.innerHTML = html;
+
+      // Création des mocks
+      const onNavigate = jest.fn();
+      const mockUpdate = jest.fn().mockRejectedValue(
+        new Error("Erreur 500")
+      );
+      const store = {
+        bills: jest.fn(() => ({
+          update: mockUpdate,
+        })),
+      };
+
+      // Mock de console.error pour capturer l'erreur
+      const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      // Instanciation du container
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      // Pré-remplissage des propriétés nécessaires (simule un fichier déjà uploadé)
+      newBill.fileUrl = "http://test.com/file.jpg";
+      newBill.fileName = "test.jpg";
+      newBill.billId = "123";
+
+      // Simulation de la soumission du formulaire
+      const event = {
+        preventDefault: jest.fn(),
+        target: document.querySelector(`form[data-testid="form-new-bill"]`),
+      };
+
+      // Appel direct de handleSubmit
+      newBill.handleSubmit(event);
+
+      // Attente que la promesse soit rejetée et que l'erreur soit catchée
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Vérifications
+      expect(mockUpdate).toHaveBeenCalled(); // L'API update doit être appelée
+      expect(consoleErrorSpy).toHaveBeenCalled(); // console.error doit être appelé
+      // Vérification que l'erreur 500 est bien loggée
+      const loggedError = consoleErrorSpy.mock.calls[0][0];
+      expect(loggedError.message || loggedError.toString()).toContain("Erreur 500");
+      // Note: onNavigate est toujours appelé même en cas d'erreur (comportement actuel du code)
+      // C'est un point d'amélioration mais on teste le comportement réel
+
+      // Nettoyage
+      consoleErrorSpy.mockRestore();
+    });
   });
 });
